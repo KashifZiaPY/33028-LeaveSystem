@@ -1,7 +1,7 @@
 import { ApiResponse } from '../types';
 
 // The Google Apps Script Web App JSON API endpoint
-export const DEFAULT_API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbweYfgJwqilt0Fn-wtAJhzAsJK1DJU71-iLw2hX65QyqZuvV_o/exec';
+export const DEFAULT_API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwOFYdJB_DWZFpKkFh7DxERzmkGNREZuBhyCptqTf7-c8vD0zLI1CGeA-fiSRQ-xo94/exec';
 
 let authErrorHandler: (() => void) | null = null;
 
