@@ -220,23 +220,36 @@ function getInitialData(): {
   };
 }
 
+let memoryFallbackState: any = null;
+
 function loadState() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      return JSON.parse(raw);
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        return JSON.parse(raw);
+      }
     }
   } catch {
     // ignore
   }
+
+  if (memoryFallbackState) {
+    return memoryFallbackState;
+  }
+
   const init = getInitialData();
+  memoryFallbackState = init;
   saveState(init);
   return init;
 }
 
 function saveState(state: any) {
+  memoryFallbackState = state;
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
   } catch {
     // ignore
   }
@@ -648,6 +661,96 @@ export async function handleMockApi(action: string, payload: Record<string, any>
         username: targetEmp.username,
         pin: newPin,
       };
+    }
+
+    case 'getEmployee': {
+      const { token, employeeId } = payload;
+      const emp = getSessionUser(token);
+      if (!emp || emp.role !== 'Root') {
+        throw new Error('Unauthorized. Only Root Administrator can view employee details.');
+      }
+
+      const targetEmp = db.employees.find((e: StoredEmployee) => e.employeeId === employeeId);
+      if (!targetEmp) throw new Error('Employee record not found.');
+
+      return {
+        employeeId: targetEmp.employeeId,
+        name: targetEmp.name,
+        username: targetEmp.username,
+        designation: targetEmp.designation,
+        department: targetEmp.department,
+        role: targetEmp.role,
+        status: targetEmp.status,
+        dateJoined: targetEmp.dateJoined,
+      };
+    }
+
+    case 'updateEmployee': {
+      const { token, employeeId, name, username, designation, department, role } = payload;
+      const emp = getSessionUser(token);
+      if (!emp || emp.role !== 'Root') {
+        throw new Error('Unauthorized. Only Root Administrator can update employee records.');
+      }
+
+      const targetEmp = db.employees.find((e: StoredEmployee) => e.employeeId === employeeId);
+      if (!targetEmp) throw new Error('Employee record not found.');
+
+      const changes: string[] = [];
+
+      if (username !== undefined) {
+        const cleanUser = String(username).trim();
+        if (cleanUser && cleanUser.toLowerCase() !== targetEmp.username.toLowerCase()) {
+          const duplicate = db.employees.find(
+            (e: StoredEmployee) => e.employeeId !== employeeId && e.username.toLowerCase() === cleanUser.toLowerCase()
+          );
+          if (duplicate) {
+            throw new Error(`That username is already taken.`);
+          }
+          targetEmp.username = cleanUser;
+          changes.push(`Username -> ${cleanUser}`);
+        }
+      }
+
+      if (name !== undefined) {
+        const cleanName = String(name).trim();
+        if (cleanName && cleanName !== targetEmp.name) {
+          targetEmp.name = cleanName;
+          changes.push(`Name -> ${cleanName}`);
+        }
+      }
+
+      if (designation !== undefined) {
+        const cleanDesig = String(designation).trim();
+        if (cleanDesig && cleanDesig !== targetEmp.designation) {
+          targetEmp.designation = cleanDesig;
+          changes.push(`Designation -> ${cleanDesig}`);
+        }
+      }
+
+      if (department !== undefined) {
+        const cleanDept = String(department).trim();
+        if (cleanDept && cleanDept !== targetEmp.department) {
+          targetEmp.department = cleanDept;
+          changes.push(`Department -> ${cleanDept}`);
+        }
+      }
+
+      if (role !== undefined && (role === 'Employee' || role === 'Principal')) {
+        if (role !== targetEmp.role) {
+          targetEmp.role = role;
+          changes.push(`Role -> ${role}`);
+        }
+      }
+
+      db.auditLogs.unshift({
+        Timestamp: formatNow(),
+        Actor: `${emp.name} (Root)`,
+        Action: 'EMPLOYEE_UPDATED',
+        Details: `Updated ${targetEmp.name} (${targetEmp.employeeId}). Changes: ${changes.join(', ') || 'None'}`,
+      });
+
+      commitDb();
+      return { ok: true, employeeId: targetEmp.employeeId, changes };
     }
 
     case 'setEmployeeStatus': {

@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, UserPlus, FileSearch, CalendarSync, ShieldAlert, 
   KeyRound, Power, Search, RefreshCw, CheckCircle2, 
-  AlertTriangle, Copy, Check, Filter, ShieldCheck, ArrowUpDown 
+  AlertTriangle, Copy, Check, Filter, ShieldCheck, ArrowUpDown,
+  Pencil
 } from 'lucide-react';
 import { SessionUser, EmployeeRecord, AuditLogEntry, OneTimeCredentials, UserRole } from '../types';
 import { OneTimePinModal } from './OneTimePinModal';
+import { EditEmployeeModal } from './EditEmployeeModal';
 import { callApi } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
@@ -36,6 +38,10 @@ export const RootConsole: React.FC<RootConsoleProps> = ({ user }) => {
   const [credentialsModal, setCredentialsModal] = useState<OneTimeCredentials | null>(null);
   const [isCredentialsOpen, setIsCredentialsOpen] = useState(false);
   const [credentialsModalTitle, setCredentialsModalTitle] = useState('New Employee Credentials');
+
+  // Edit employee modal
+  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Audit Log State
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
@@ -121,6 +127,13 @@ export const RootConsole: React.FC<RootConsoleProps> = ({ user }) => {
     } catch (err: any) {
       showError(err.message || 'Failed to reset employee PIN');
     }
+  };
+
+  // Handle Edit Employee Success
+  const handleEditSuccess = (empName: string, changes: string[]) => {
+    const summary = changes && changes.length > 0 ? changes.join(', ') : 'Profile attributes updated';
+    showSuccess(`Updated ${empName}: ${summary}`);
+    fetchEmployees();
   };
 
   // Handle Create Employee Submit
@@ -414,11 +427,25 @@ export const RootConsole: React.FC<RootConsoleProps> = ({ user }) => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Edit Employee */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingEmployeeId(emp.employeeId);
+                                setIsEditModalOpen(true);
+                              }}
+                              className="px-2.5 py-1 text-indigo-900 hover:text-indigo-950 bg-indigo-50 hover:bg-indigo-100 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer border border-indigo-200/80"
+                              title="Edit employee record"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-[#1a237e]" />
+                              Edit
+                            </button>
+
                             {/* Reset PIN */}
                             <button
                               type="button"
                               onClick={() => handleResetPin(emp)}
-                              className="px-2.5 py-1 text-slate-700 hover:text-indigo-900 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
+                              className="px-2.5 py-1 text-slate-700 hover:text-indigo-900 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                               title="Generate new temporary PIN"
                             >
                               <KeyRound className="w-3.5 h-3.5 text-amber-600" />
@@ -800,6 +827,18 @@ export const RootConsole: React.FC<RootConsoleProps> = ({ user }) => {
           setIsCredentialsOpen(false);
           setCredentialsModal(null); // Purge PIN from memory immediately
         }}
+      />
+
+      {/* Edit Employee Modal */}
+      <EditEmployeeModal
+        isOpen={isEditModalOpen}
+        employeeId={editingEmployeeId}
+        userToken={user.token}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingEmployeeId(null);
+        }}
+        onSuccess={handleEditSuccess}
       />
     </div>
   );
