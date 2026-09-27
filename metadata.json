@@ -1,0 +1,6 @@
+{
+  "name": "GVTIW Leave Management System",
+  "description": "Leave Management System for Govt. Vocational Training Institute for Women (GVTIW) Samanabad, Institute Code 33028, TEVTA Punjab.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
